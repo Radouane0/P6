@@ -41,11 +41,19 @@ exports.modifySauce= (req, res, next) => {
     delete sauceObject._userId;
     Sauce.findOne({_id: req.params.id})
         .then((sauce) => {
+            const filename = sauce.imageUrl.split('/images/')[1];
             if (sauce.userId != req.auth.userId) {
                 res.status(401).json({ message : 'Not authorized'});
             } else {
                 Sauce.updateOne({ _id: req.params.id}, { ...sauceObject, _id: req.params.id})
-                .then(() => res.status(200).json({message : 'Objet modifié!'}))
+                .then(() => {
+                    if (req.file != undefined) {
+                        fs.unlink(`images/${filename}`, (error) => {
+                            if (error) throw error
+                        })
+                    }
+                    res.status(200).json({message : 'Objet modifié!'})
+                })
                 .catch(error => res.status(401).json({ error }));
             }
         })
@@ -88,5 +96,54 @@ exports.getAllSauces = (req, res, next) => {
 }
 
 exports.likeSauce = (req, res, next) => {
-    
+    Sauce.findOne({_id: req.params.id})
+    .then((sauce) => {
+        const UserId = req.body.userId
+        const UserLike = req.body.like
+        switch(UserLike) {
+            // L'utilisateur a aimé la sauce
+            case 1:
+                sauce.likes++
+                sauce.usersLiked.push(UserId)
+                sauce.save()
+                    .then(() => { res.status(201).json({message: 'Vous avez aimé la sauce !'})})
+                    .catch(error => { res.status(400).json( { error })})
+                break;
+            // L'utilisateur n'a pas aimé la sauce
+            case -1:
+                sauce.dislikes++
+                sauce.usersDisliked.push(UserId)
+                sauce.save()
+                    .then(() => { res.status(201).json({message: "Vous n'avez pas aimé la sauce !"})})
+                    .catch(error => { res.status(400).json( { error })})
+                break;
+            // L'utilisateur annule son choix
+            case 0:
+                // Annuler le like
+                if (sauce.usersLiked.includes(UserId)) {
+                    sauce.likes--
+                    const index = sauce.usersLiked.indexOf(UserId);
+                    sauce.usersLiked.splice(index, 1)
+                    sauce.save()
+                        .then(() => { res.status(201).json({message: "Vous avez changé d'avis sur la sauce !"})})
+                        .catch(error => { res.status(400).json( { error })})
+                }
+                // Annuler le dislike
+                if (sauce.usersDisliked.includes(UserId)) {
+                    sauce.dislikes--
+                    const index = sauce.usersDisliked.indexOf(UserId);
+                    sauce.usersDisliked.splice(index, 1)
+                    sauce.save()
+                        .then(() => { res.status(201).json({message: "Vous avez changé d'avis sur la sauce !"})})
+                        .catch(error => { res.status(400).json( { error })})
+                }             
+                break;    
+        }
+    }).catch(
+        (error) => {
+            res.status(500).json({
+                error: error
+            });
+        }
+    );
 }
