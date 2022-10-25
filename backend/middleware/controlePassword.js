@@ -9,7 +9,7 @@ passwordSchema
 .has().lowercase()                             
 .has().digits(2)                                
 .has().not().spaces()                           
-.is().not().oneOf(['Passw0rd', 'Password123']);
+.is().not().oneOf(['Passw0rd', 'Password123', 'azerty123']);
 
 module.exports = (req, res, next) => {
     if (passwordSchema.validate(req.body.password)) {
